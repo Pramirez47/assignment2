@@ -123,3 +123,33 @@ def decode_instruction(instruction):
 
     # If no match is found, return "UNKNOWN INSTRUCTION"
     return "UNKNOWN INSTRUCTION"
+
+def decode_file(filename):
+    """
+    Reads a file containing binary instructions, decodes them,
+    and prints the corresponding assembly instructions.
+    """
+    try:
+        with open(filename, "r") as file:  # Open the file in read mode
+            for line in file:
+                # Convert the binary string into an integer
+                binary_instruction = int(line.strip(), 2)  # Strip spaces and interpret as base 2
+                decoded_instruction = decode_instruction(binary_instruction)
+                print(decoded_instruction)  # Print the decoded instruction
+    except FileNotFoundError:
+        print(f"Error: File '{filename}' not found.")
+    except ValueError:
+        print(f"Error: File '{filename}' contains invalid binary data.")
+def main():
+    """
+    Main function to handle command-line arguments and execute the disassembler.
+    """
+    if len(sys.argv) != 2:  # Ensure one argument is passed
+        print("Usage: python disassembler.py <filename>")
+        return
+
+    filename = sys.argv[1]  # Get the filename from command-line arguments
+    decode_file(filename)  # Decode the instructions in the file
+
+if __name__ == "__main__":
+    main()  # Run the main function
