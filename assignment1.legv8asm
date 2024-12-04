@@ -1,0 +1,252 @@
+//Name: Ponciano Ramirez NetID: pram1347
+//Name: Billy Dang NetID: bpdang07
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//add in arguments for quicksort method
+//x0 = base address of array
+ADDI X0, XZR, #0 
+// x1 = n 
+ADDI X1, XZR, #17  //this will also be the size of the array  (THIS IS SETTING N!!!!)
+//call fill
+BL fill             //this is based off size n in register 1
+//call quicksort
+BL quicksort
+HALT 
+
+// 
+quicksort:
+    //x0,x1 store base address of array and n
+    SUBI SP, SP, #8 // adjust stack for 1 item
+    STUR LR, [SP,#0] // save the return address
+
+    //add in arguements f and l for quicksort_recruse in (x1, x2)
+    SUBI X2, X1, #1 //add in l first which is n - 
+    //add in f which is 0
+    ORR X1, XZR, XZR   
+    BL quicksort_recurse
+
+    LDUR LR, [SP,#0]       // Load the saved return address (LR) from the stack
+    ADDI SP, SP, #8        // Adjust the stack pointer back 
+    BR LR
+// 
+quicksort_recurse:
+    //assume base address of array, f, and l are on x0, x1, x2
+    SUBI SP, SP, #24         // Make space for 3 values (f, l) and LR
+    STUR LR, [SP,#0]         // Save LR (link register) on the stack
+    STUR X1, [SP,#8]         // Save f (X1) on the stack
+    STUR X2, [SP,#16]        // Save l (X2) on the stack
+
+    // Check if f >= l
+    SUBS X9, X1, X2          // X9 = f - l
+    B.GE quicksort_return    // If f >= l, return
+    // Call partition(a, f, l)
+    BL partition             // Call partition, return value is in X4 (p)
+    LDUR X1, [SP,#8]         // Restore f (X1) from the stack
+    LDUR X2, [SP,#16]        // Restore l (X2) from the stack
+
+    //set up arguements for first recursive call of quicksort_recurse
+    ORR X9, XZR, X4          //store return value of partition 
+    SUBI X2, X9, #1          // l = p - 1
+
+    BL quicksort_recurse      // Call quicksort_recurse with updated l
+
+    // Recursive call: quicksort_recurse(a, p+1, l)
+    ADDI X1, X4, #1          // f = p + 1
+    LDUR X2, [SP,#16]        // Restore l (X2) from the stack
+
+    BL quicksort_recurse      
+    //end of quicksort_recurse 
+    quicksort_return:
+        LDUR X1, [SP,#8]         // Restore f
+        LDUR X2, [SP,#16]        // Restore l
+        LDUR LR, [SP,#0]         // Restore LR
+        ADDI SP, SP, #24         // Restore stack pointer
+        BR LR                    // Return to the caller
+
+
+partition:
+    //assume f and l are in registers x1, x2
+    SUBI SP, SP, #8 // adjust stack for 1 item 
+    STUR LR, [SP,#0] // save the return address
+
+     // Calculate the address for a[f] (a + f * 8)
+    LSL X12, X1, #3    // X12 = f * 8 (shift left i by 3)
+    ADD X13, X0, X12   // X13 = base address + f * 8 (this is the address of a[f])
+    LDUR X14, [X13, #0] // Load the value of a[j] into X14
+    //SAVE P
+    ORR X22, XZR, X14   //p = a[f]
+    //SAVE I
+    ADDI X23, X1, #1   //i = f + 1
+    //SAVE j
+    ORR X21, XZR, X2   //j = l
+    //save f, l
+    ORR X19, XZR, X1   
+    PRNT X19
+    ORR X20, XZR, X2   
+    loopPartition:
+        // Check if i <= j
+        SUBS X15, X23, X21   
+
+        B.GT exitLoopPartition      // If i > j, exit the loop 
+
+        //place parameters (a, i, l, p)
+        ORR X1, XZR, X23     
+        ORR X3, XZR, X22
+        BL next_i //x4 is return value
+        ORR X23, XZR, X4                
+
+        //place parameters (a, j, f, p)
+        ORR X1, XZR, X21
+        ORR X2, XZR, X19
+        ORR X3, XZR, X22
+        BL next_j //x4 is return value
+        ORR X21, XZR, X4 
+
+        //if (i < j)
+        SUBS X15, X23, X21   // Subtract j from i
+
+        B.GE loopPartition      // If i >= j, then reloop again
+
+        //if i is less than j, perform swap, set parameters first
+        ORR X1, XZR, X23   //x1 = i
+        ORR X2, XZR, X21   //x2 = j
+
+        //if (i < j) { swap(a, i, j);}
+        BL swap
+        //loop again
+        B loopPartition
+    //this is second conditonal
+    exitLoopPartition:  
+        //check if i and j are equal
+        SUBS X11, X19, X21     // Subtract X10 from X9 and set condition flags
+        B.EQ returnJ      // If X9 == X10, branch to equalValues
+        //if i is less than j, perform swap, set parameters first
+        ORR X1, XZR, X19
+        ORR X2, XZR, X21
+        BL swap
+    returnJ:
+        //return j
+        ORR X4, XZR, X21
+        LDUR LR, [SP,#0]       // Load the saved return address (LR) from the stack
+        ADDI SP, SP, #8        // Adjust the stack pointer back 
+        BR LR                      // Return to the caller
+
+next_i:
+    // assume i, l, p are in registers x1, x2, x3
+    PRNL 
+    whileLoopI:
+        // check if i is less or equal to l
+        SUBS X9, X1, X2   // Compare i (X1) with l (X2)
+        B.GT exitLoopI    // If i > l, exit the loop
+
+        // Calculate the address for a[i] (a + i * 8)
+        LSL X10, X1, #3   // X10 = i * 8 (shift left i by 3)
+        ADD X11, X0, X10  // X11 = base address + i * 8 (this is the address of a[i])
+
+        // check if a[i] < p
+        LDUR X12, [X11, #0] // Load the value of a[i] into X12
+        SUBS X13, X12, X3   // Compare a[i] (X14) with p (X3)
+        B.GE exitLoopI      // If a[i] >= p, exit the loop
+
+        // Increment i
+        ADDI X1, X1, #1     // i++
+
+        B whileLoopI        // Repeat the loop
+
+    exitLoopI:
+        // Check if i > l to return l + 1
+        SUBS X9, X1, X2     // Compare i with l again
+        B.LE return_i       // If i <= l, return i
+
+        // Return l + 1
+        ADDI X4, X2, #1     // Set return value to l + 1
+        BR LR               // Return from the function
+
+    return_i:
+        ORR X4, XZR, X1     // Place return value (i) in X4
+        BR LR               // Return from the function
+
+
+
+next_j:
+    PRNL 
+    // assume j, f, p are in registers x1, x2, x3
+    whileLoopJ:
+        // check if j is less than or equal to f
+        SUBS X9, X1, X2       // Compare j (X1) with f (X2)
+        B.LE exitLoopJ        // If j <= f, exit the loop
+
+        // Calculate the address for a[j] (a + j * 8)
+        LSL X10, X1, #3       // X10 = j * 8 (shift left j by 3)
+        ADD X11, X0, X10      // X11 = base address + j * 8 (this is the address of a[j])
+
+        // Check if a[j] >= p
+        LDUR X12, [X11, #0]   // Load the value of a[j] into X12
+        SUBS X13, X12, X3     // Compare a[j] (X12) with p (X3)
+        B.LT exitLoopJ        // If a[j] < p, exit the loop
+
+        // Decrement j
+        SUBI X1, X1, #1       // j--
+        B whileLoopJ          // Repeat the loop
+
+    exitLoopJ:
+        // Check if j <= f to return f
+        SUBS X9, X1, X2       // Compare j with f again
+        B.GT return_j         // If j > f, return j
+
+        // Return f
+        ORR X4, XZR, X2       // Set return value to f
+        BR LR                 // Return from the function
+
+    return_j:
+        ORR X4, XZR, X1       // Place return value (j) in X4
+        BR LR                 // Return from the function
+
+
+// Fill array function
+fill: 
+    // i variable = 0
+    ADDI X9, XZR, #0   // Set i to 0 (X9 will be our loop index)
+    
+    // Start of loop
+    fillLoop: 
+        SUBS X10, X9, X1 // Compare i (X9) with n (X1) by calculating i - n
+        B.GE exitLoopFill    // If i >= n, exit the loop
+        
+        // Calculate n - i - 1
+        SUB X11, X1, X9   // X11 = n - i
+        SUBI X11, X11, #1  // X11 = (n - i) - 1
+
+        // Calculate the address for a[i] (a + i * 8)
+        LSL X12, X9, #3   // X12 = i * 8 (shift left i by 3)
+        ADD X13, X0, X12   // X13 = base address + i * 8 (this is the address of a[i])
+
+        // Store (n - i - 1) into a[i]
+        STUR X11, [X13, #0]  // Store X4 (n - i - 1) into a[i]
+
+        // Increment i
+        ADDI X9, X9, #1   // i++
+
+        B fillLoop         // Jump back to the start of the loop
+
+    // End of loop
+    exitLoopFill:    
+        BR LR              // Return from the function
+
+// Swap function
+swap:
+
+    // Calculate the address for a[i] (a + i * 8)
+    LSL X10, X1, #3        // X10 = i * 8 (shift left i by 3)
+    ADD X11, X0, X10       // X11 = base address + i * 8 (this is the address of a[i])
+    LDUR X12, [X11, #0]    // Load a[i] into a register
+    ORR X9, XZR, X12       // Store a[i] in X9 (temp)
+        
+    // Calculate the address for a[j] (a + j * 8)
+    LSL X13, X2, #3        // X13 = j * 8 (shift left j by 3)
+    ADD X14, X0, X13       // X14 = base address + j * 8 (this is the address of a[j])
+    LDUR X15, [X14, #0]    // Load a[j] into a register
+    STUR X15, [X11, #0]    // Store a[j] at a[i]
+    STUR X9, [X14, #0]     // Store temp (a[i]) at a[j]
+    BR LR                  // Return from the function
