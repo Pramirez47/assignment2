@@ -1,3 +1,17 @@
+import sys
+
+def get_register_name(register):
+    """
+    Returns the appropriate name for a given register number.
+    Handles special cases for XZR, SP, and LR.
+    """
+    if register == 31:
+        return "XZR"
+    elif register == 28:
+        return "SP"
+    elif register == 30:
+        return "LR"
+    return f"X{register}"  # Default case for other registers
 # Map of condition codes for B.cond
 condition_codes = {
     0x0: "EQ",  # Equal
@@ -54,27 +68,42 @@ opcode_map = {
     0b11111111111: ("R-Type", "HALT"),  # Halts the program
 }
 
-# R-Type Decoder
+# Updated R-Type Decoder
 def decode_r_type(instruction, name):
+    # Check for special cases first
+    if name == "PRNL":
+        return "PRNL"  # No additional fields
+    elif name == "DUMP":
+        return "DUMP"  # No additional fields
+    elif name == "HALT":
+        return "HALT"  # No additional fields
+    elif name == "PRNT":
+        Rd = instruction & 0x1F  # Extract Rd (bits 0-4)
+        return f"PRNT {get_register_name(Rd)}"  # Use Rd for the register to print
+
+    # Default R-Type decoding
     Rm = (instruction >> 16) & 0x1F  # Bits 16-20
     shamt = (instruction >> 10) & 0x3F  # Bits 10-15
     Rn = (instruction >> 5) & 0x1F  # Bits 5-9
     Rd = instruction & 0x1F  # Bits 0-4
-    return f"{name} X{Rd}, X{Rn}, X{Rm}"  # Assembly format
+    return f"{name} {get_register_name(Rd)}, {get_register_name(Rn)}, {get_register_name(Rm)}"  # Assembly format
 
-# D-Type Decoder
+
+# Updated D-Type Decoder
 def decode_d_type(instruction, name):
     address = (instruction >> 12) & 0x1FF  # Bits 12-20
     Rn = (instruction >> 5) & 0x1F  # Bits 5-9
     Rt = instruction & 0x1F  # Bits 0-4
-    return f"{name} X{Rt}, [X{Rn}, #{address}]"  # Assembly format
+    return f"{name} {get_register_name(Rt)}, [{get_register_name(Rn)}, #{address}]"  # Assembly format
 
-# I-Type Decoder
+
+# Updated I-Type Decoder
 def decode_i_type(instruction, name):
     immediate = (instruction >> 10) & 0xFFF  # Bits 10-21
     Rn = (instruction >> 5) & 0x1F  # Bits 5-9
     Rd = instruction & 0x1F  # Bits 0-4
-    return f"{name} X{Rd}, X{Rn}, #{immediate}"  # Assembly format
+    return f"{name} {get_register_name(Rd)}, {get_register_name(Rn)}, #{immediate}"  # Assembly format
+
 
 # B-Type Decoder
 def decode_b_type(instruction, name):
@@ -89,7 +118,7 @@ def decode_cb_type(instruction, name):
         condition = condition_codes.get(Rt, f"Unknown condition ({Rt})")
         return f"{name} #{address}, condition={condition}"
 
-    return f"{name} X{Rt}, #{address}"  # Handle CBNZ and CBZ
+    return f"{name} {get_register_name(Rt)}, #{address}"  # Handle CBNZ and CBZ
 def decode_instruction(instruction):
     # Step 1: Check R-Type (Opcode in bits 21–31)
     opcode = (instruction >> 21) & 0x7FF  # Extract 11 bits
@@ -126,20 +155,28 @@ def decode_instruction(instruction):
 
 def decode_file(filename):
     """
-    Reads a file containing binary instructions, decodes them,
-    and prints the corresponding assembly instructions.
+    Reads a file, skips the first 4 lines, and processes the remaining lines.
     """
     try:
-        with open(filename, "r") as file:  # Open the file in read mode
-            for line in file:
-                # Convert the binary string into an integer
-                binary_instruction = int(line.strip(), 2)  # Strip spaces and interpret as base 2
+        with open(filename, "rb") as file:  # Open in binary read mode
+            while True:
+                # Read 4 bytes (32 bits) at a time
+                bytes_read = file.read(4)
+                if not bytes_read:  # End of file
+                    break
+                
+                # Convert 4 bytes into a 32-bit integer in big-endian format
+                binary_instruction = int.from_bytes(bytes_read, byteorder="big")
+                
+                # Decode the instruction
                 decoded_instruction = decode_instruction(binary_instruction)
-                print(decoded_instruction)  # Print the decoded instruction
+                print(decoded_instruction)  # Print the decoded assembly instruction
     except FileNotFoundError:
         print(f"Error: File '{filename}' not found.")
-    except ValueError:
-        print(f"Error: File '{filename}' contains invalid binary data.")
+    except ValueError as e:
+        print(f"Error: {e}")
+
+
 def main():
     """
     Main function to handle command-line arguments and execute the disassembler.
