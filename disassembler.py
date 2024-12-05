@@ -1,3 +1,4 @@
+import sys\
 # Map of condition codes for B.cond
 condition_codes = {
     0x0: "EQ",  # Equal
@@ -126,20 +127,27 @@ def decode_instruction(instruction):
 
 def decode_file(filename):
     """
-    Reads a file containing binary instructions, decodes them,
-    and prints the corresponding assembly instructions.
+    Reads a file, skips the first 4 lines, and processes the remaining lines.
     """
     try:
-        with open(filename, "r") as file:  # Open the file in read mode
-            for line in file:
+        with open(filename, "r") as file:
+            for index, line in enumerate(file):  # Enumerate gives line number
+                if index < 4:  # Skip the first 4 lines
+                    continue
+                
+                # Process only the binary code
+                stripped_line = line.strip().split()[1]  # Extract the second part (binary)
+                
                 # Convert the binary string into an integer
-                binary_instruction = int(line.strip(), 2)  # Strip spaces and interpret as base 2
+                binary_instruction = int(stripped_line, 2)
                 decoded_instruction = decode_instruction(binary_instruction)
                 print(decoded_instruction)  # Print the decoded instruction
     except FileNotFoundError:
         print(f"Error: File '{filename}' not found.")
-    except ValueError:
-        print(f"Error: File '{filename}' contains invalid binary data.")
+    except ValueError as e:
+        print(f"Error: {e}")
+
+
 def main():
     """
     Main function to handle command-line arguments and execute the disassembler.
