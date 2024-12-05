@@ -69,3 +69,5 @@ instance/
 .scrapy
 
 .vscode/
+# macOS system files
+.DS_Store

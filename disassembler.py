@@ -55,13 +55,25 @@ opcode_map = {
     0b11111111111: ("R-Type", "HALT"),  # Halts the program
 }
 
-# R-Type Decoder
 def decode_r_type(instruction, name):
+    # Check for special cases first
+    if name == "PRNL":
+        return "PRNL"  # No additional fields
+    elif name == "DUMP":
+        return "DUMP"  # No additional fields
+    elif name == "HALT":
+        return "HALT"  # No additional fields
+    elif name == "PRNT":
+        Rd = instruction & 0x1F  # Extract Rd (bits 0-4)
+        return f"PRNT X{Rd}"  # Use Rd for the register to print
+
+    # Default R-Type decoding
     Rm = (instruction >> 16) & 0x1F  # Bits 16-20
     shamt = (instruction >> 10) & 0x3F  # Bits 10-15
     Rn = (instruction >> 5) & 0x1F  # Bits 5-9
     Rd = instruction & 0x1F  # Bits 0-4
     return f"{name} X{Rd}, X{Rn}, X{Rm}"  # Assembly format
+
 
 # D-Type Decoder
 def decode_d_type(instruction, name):
