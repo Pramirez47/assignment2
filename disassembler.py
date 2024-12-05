@@ -36,6 +36,7 @@ opcode_map = {
     0b10001011000: ("R-Type", "ADD"),
     0b10001010000: ("R-Type", "AND"),
     0b11001011000: ("R-Type", "SUB"),
+    0b11101011000: ("R-Type", "SUBS"),
     0b10011011000: ("R-Type", "MUL"),
     0b11010011011: ("R-Type", "LSL"),
     0b11010011010: ("R-Type", "LSR"),
@@ -54,7 +55,7 @@ opcode_map = {
     # B-Type Opcodes
     0b000101: ("B-Type", "B"),
     0b100101: ("B-Type", "BL"),
-    0b11010110000: ("B-Type", "BR"),
+
 
     # CB-Type Opcodes
     0b10110101: ("CB-Type", "CBNZ"),
@@ -66,11 +67,18 @@ opcode_map = {
     0b11111111101: ("R-Type", "PRNT"),  # Prints a register's content
     0b11111111110: ("R-Type", "DUMP"),  # Displays registers and memory
     0b11111111111: ("R-Type", "HALT"),  # Halts the program
+    0b11010110000: ("R-Type", "BR"),
+
+
 }
 
 # Updated R-Type Decoder
 def decode_r_type(instruction, name):
     # Check for special cases first
+    if name == "BR":
+        Rn = (instruction >> 5) & 0x1F  # Extract Rn (bits 5–9)
+        return f"{name} {get_register_name(Rn)}"  # BR uses only Rn
+
     if name == "PRNL":
         return "PRNL"  # No additional fields
     elif name == "DUMP":
