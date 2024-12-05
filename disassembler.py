@@ -1,4 +1,17 @@
-import sys\
+import sys
+
+def get_register_name(register):
+    """
+    Returns the appropriate name for a given register number.
+    Handles special cases for XZR, SP, and LR.
+    """
+    if register == 31:
+        return "XZR"
+    elif register == 28:
+        return "SP"
+    elif register == 30:
+        return "LR"
+    return f"X{register}"  # Default case for other registers
 # Map of condition codes for B.cond
 condition_codes = {
     0x0: "EQ",  # Equal
@@ -55,6 +68,7 @@ opcode_map = {
     0b11111111111: ("R-Type", "HALT"),  # Halts the program
 }
 
+# Updated R-Type Decoder
 def decode_r_type(instruction, name):
     # Check for special cases first
     if name == "PRNL":
@@ -65,29 +79,31 @@ def decode_r_type(instruction, name):
         return "HALT"  # No additional fields
     elif name == "PRNT":
         Rd = instruction & 0x1F  # Extract Rd (bits 0-4)
-        return f"PRNT X{Rd}"  # Use Rd for the register to print
+        return f"PRNT {get_register_name(Rd)}"  # Use Rd for the register to print
 
     # Default R-Type decoding
     Rm = (instruction >> 16) & 0x1F  # Bits 16-20
     shamt = (instruction >> 10) & 0x3F  # Bits 10-15
     Rn = (instruction >> 5) & 0x1F  # Bits 5-9
     Rd = instruction & 0x1F  # Bits 0-4
-    return f"{name} X{Rd}, X{Rn}, X{Rm}"  # Assembly format
+    return f"{name} {get_register_name(Rd)}, {get_register_name(Rn)}, {get_register_name(Rm)}"  # Assembly format
 
 
-# D-Type Decoder
+# Updated D-Type Decoder
 def decode_d_type(instruction, name):
     address = (instruction >> 12) & 0x1FF  # Bits 12-20
     Rn = (instruction >> 5) & 0x1F  # Bits 5-9
     Rt = instruction & 0x1F  # Bits 0-4
-    return f"{name} X{Rt}, [X{Rn}, #{address}]"  # Assembly format
+    return f"{name} {get_register_name(Rt)}, [{get_register_name(Rn)}, #{address}]"  # Assembly format
 
-# I-Type Decoder
+
+# Updated I-Type Decoder
 def decode_i_type(instruction, name):
     immediate = (instruction >> 10) & 0xFFF  # Bits 10-21
     Rn = (instruction >> 5) & 0x1F  # Bits 5-9
     Rd = instruction & 0x1F  # Bits 0-4
-    return f"{name} X{Rd}, X{Rn}, #{immediate}"  # Assembly format
+    return f"{name} {get_register_name(Rd)}, {get_register_name(Rn)}, #{immediate}"  # Assembly format
+
 
 # B-Type Decoder
 def decode_b_type(instruction, name):
@@ -102,7 +118,7 @@ def decode_cb_type(instruction, name):
         condition = condition_codes.get(Rt, f"Unknown condition ({Rt})")
         return f"{name} #{address}, condition={condition}"
 
-    return f"{name} X{Rt}, #{address}"  # Handle CBNZ and CBZ
+    return f"{name} {get_register_name(Rt)}, #{address}"  # Handle CBNZ and CBZ
 def decode_instruction(instruction):
     # Step 1: Check R-Type (Opcode in bits 21–31)
     opcode = (instruction >> 21) & 0x7FF  # Extract 11 bits
