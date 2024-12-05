@@ -13,6 +13,14 @@ def get_register_name(register):
         return "LR"
     return f"X{register}"  # Default case for other registers
 # Map of condition codes for B.cond
+
+# Empty at Start
+label_map = {}
+next_label_number = 1  # Start with Label1
+
+
+
+
 condition_codes = {
     0x0: "EQ",  # Equal
     0x1: "NE",  # Not equal
@@ -72,6 +80,17 @@ opcode_map = {
 
 }
 
+
+def get_label(address):
+    global next_label_number
+    if address not in label_map:
+        label_map[address] = f"Label{next_label_number}"
+        next_label_number += 1
+    return label_map[address]
+
+
+
+    
 # Updated R-Type Decoder
 def decode_r_type(instruction, name):
     # Check for special cases first
@@ -112,11 +131,28 @@ def decode_i_type(instruction, name):
     Rd = instruction & 0x1F  # Bits 0-4
     return f"{name} {get_register_name(Rd)}, {get_register_name(Rn)}, #{immediate}"  # Assembly format
 
+#  B-Type Decoder
+def decode_b_type(instruction, name, current_pc):
+    # Extract the 26-bit offset (bits 0-25)
+    offset = instruction & 0x3FFFFFF
 
-# B-Type Decoder
-def decode_b_type(instruction, name):
-    address = instruction & 0x3FFFFFF  # Bits 0-25
-    return f"{name} #{address}"  # Assembly format
+    # Sign-extend the offset to 32 bits
+    if offset & 0x2000000:  # If the sign bit (bit 25) is set
+        offset -= 0x4000000  # Subtract 2^26 to handle negative values
+
+    # Calculate the target address (current PC + offset * 4)
+    target_address = current_pc + (offset << 2)
+
+    # Get or assign a label for the target address
+    label = get_label(target_address)
+
+    return f"{name} {label}"
+
+
+
+
+
+    
 # Updated CB-Type Decoder
 def decode_cb_type(instruction, name):
     address = (instruction >> 5) & 0x7FFFF  # Extract 19 bits for address (bits 5-23)
@@ -127,7 +163,8 @@ def decode_cb_type(instruction, name):
         return f"{name} #{address}, condition={condition}"
 
     return f"{name} {get_register_name(Rt)}, #{address}"  # Handle CBNZ and CBZ
-def decode_instruction(instruction):
+    
+def decode_instruction(instruction, current_pc):
     # Step 1: Check R-Type (Opcode in bits 21–31)
     opcode = (instruction >> 21) & 0x7FF  # Extract 11 bits
     if opcode in opcode_map and opcode_map[opcode][0] == "R-Type":
@@ -135,7 +172,6 @@ def decode_instruction(instruction):
         return decode_r_type(instruction, name)
 
     # Step 2: Check D-Type (Opcode in bits 21–31)
-    opcode = (instruction >> 21) & 0x7FF  # Extract 11 bits
     if opcode in opcode_map and opcode_map[opcode][0] == "D-Type":
         _, name = opcode_map[opcode]
         return decode_d_type(instruction, name)
@@ -150,7 +186,7 @@ def decode_instruction(instruction):
     opcode = (instruction >> 26) & 0x3F  # Extract 6 bits
     if opcode in opcode_map and opcode_map[opcode][0] == "B-Type":
         _, name = opcode_map[opcode]
-        return decode_b_type(instruction, name)
+        return decode_b_type(instruction, name, current_pc)  # Pass current_pc
 
     # Step 5: Check CB-Type (Opcode in bits 24–31)
     opcode = (instruction >> 24) & 0xFF  # Extract 8 bits
@@ -161,28 +197,37 @@ def decode_instruction(instruction):
     # If no match is found, return "UNKNOWN INSTRUCTION"
     return "UNKNOWN INSTRUCTION"
 
+
+    # If no match is found, return "UNKNOWN INSTRUCTION"
+    return "UNKNOWN INSTRUCTION"
+
 def decode_file(filename):
     """
-    Reads a file, skips the first 4 lines, and processes the remaining lines.
+    Reads a file and decodes instructions, tracking the program counter.
     """
     try:
+        current_pc = 0x0  # Start program counter at 0x0
         with open(filename, "rb") as file:  # Open in binary read mode
             while True:
                 # Read 4 bytes (32 bits) at a time
                 bytes_read = file.read(4)
                 if not bytes_read:  # End of file
                     break
-                
+
                 # Convert 4 bytes into a 32-bit integer in big-endian format
                 binary_instruction = int.from_bytes(bytes_read, byteorder="big")
-                
+
                 # Decode the instruction
-                decoded_instruction = decode_instruction(binary_instruction)
-                print(decoded_instruction)  # Print the decoded assembly instruction
+                decoded_instruction = decode_instruction(binary_instruction, current_pc)
+                print(f"{current_pc:08X}: {decoded_instruction}")  # Print address and instruction
+
+                # Increment the program counter by 4 (size of one instruction)
+                current_pc += 4
     except FileNotFoundError:
         print(f"Error: File '{filename}' not found.")
     except ValueError as e:
         print(f"Error: {e}")
+
 
 
 def main():
@@ -195,6 +240,7 @@ def main():
 
     filename = sys.argv[1]  # Get the filename from command-line arguments
     decode_file(filename)  # Decode the instructions in the file
+
 
 if __name__ == "__main__":
     main()  # Run the main function
