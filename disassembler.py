@@ -158,18 +158,19 @@ def decode_file(filename):
     Reads a file, skips the first 4 lines, and processes the remaining lines.
     """
     try:
-        with open(filename, "r") as file:
-            for index, line in enumerate(file):  # Enumerate gives line number
-                if index < 4:  # Skip the first 4 lines
-                    continue
+        with open(filename, "rb") as file:  # Open in binary read mode
+            while True:
+                # Read 4 bytes (32 bits) at a time
+                bytes_read = file.read(4)
+                if not bytes_read:  # End of file
+                    break
                 
-                # Process only the binary code
-                stripped_line = line.strip().split()[1]  # Extract the second part (binary)
+                # Convert 4 bytes into a 32-bit integer in big-endian format
+                binary_instruction = int.from_bytes(bytes_read, byteorder="big")
                 
-                # Convert the binary string into an integer
-                binary_instruction = int(stripped_line, 2)
+                # Decode the instruction
                 decoded_instruction = decode_instruction(binary_instruction)
-                print(decoded_instruction)  # Print the decoded instruction
+                print(decoded_instruction)  # Print the decoded assembly instruction
     except FileNotFoundError:
         print(f"Error: File '{filename}' not found.")
     except ValueError as e:
