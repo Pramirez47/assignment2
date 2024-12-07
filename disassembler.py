@@ -149,20 +149,30 @@ def decode_b_type(instruction, name, current_pc):
     return f"{name} {label}"
 
 
-
-
-
     
 # Updated CB-Type Decoder
-def decode_cb_type(instruction, name):
-    address = (instruction >> 5) & 0x7FFFF  # Extract 19 bits for address (bits 5-23)
-    Rt = instruction & 0x1F  # Extract 5 bits for Rt (bits 0-4)
+def decode_cb_type(instruction, name, current_pc):
+    # Extract the 19-bit signed offset (bits 5-23)
+    offset = (instruction >> 5) & 0x7FFFF  # 19 bits
+    if offset & 0x40000:  # Sign-extend if negative (bit 18 is set)
+        offset -= 0x80000  # Subtract 2^19 to handle negative values
+
+    # Calculate the target address
+    target_address = current_pc + (offset << 2)
 
     if name == "B.cond":  # Handle B.cond instructions
-        condition = condition_codes.get(Rt, f"Unknown condition ({Rt})")
-        return f"{name} #{address}, condition={condition}"
+        condition_code = instruction & 0xF  # Bits 0-3 for condition code
+        condition = condition_codes.get(condition_code, f"Unknown condition ({condition_code})")
+        label = get_label(target_address)
 
-    return f"{name} {get_register_name(Rt)}, #{address}"  # Handle CBNZ and CBZ
+        return f"{name} {get_label(target_address)}, condition={condition}"
+
+    # Handle CBZ and CBNZ instructions
+    Rt = instruction & 0x1F  # Bits 0-4 for register
+    label = get_label(target_address)
+
+    return f"{name} {get_register_name(Rt)}, {get_label(target_address)}"
+
     
 def decode_instruction(instruction, current_pc):
     # Step 1: Check R-Type (Opcode in bits 21–31)
@@ -192,7 +202,7 @@ def decode_instruction(instruction, current_pc):
     opcode = (instruction >> 24) & 0xFF  # Extract 8 bits
     if opcode in opcode_map and opcode_map[opcode][0] == "CB-Type":
         _, name = opcode_map[opcode]
-        return decode_cb_type(instruction, name)
+        return decode_cb_type(instruction, name, current_pc)  # Pass current_pc
 
     # If no match is found, return "UNKNOWN INSTRUCTION"
     return "UNKNOWN INSTRUCTION"
@@ -214,6 +224,10 @@ def decode_file(filename):
                 if not bytes_read:  # End of file
                     break
 
+                # Check if the current PC is a label in label_map
+                if current_pc in label_map:
+                    print(f"{label_map[current_pc]}:")  # Print the label (e.g., Label1:)
+
                 # Convert 4 bytes into a 32-bit integer in big-endian format
                 binary_instruction = int.from_bytes(bytes_read, byteorder="big")
 
@@ -227,6 +241,7 @@ def decode_file(filename):
         print(f"Error: File '{filename}' not found.")
     except ValueError as e:
         print(f"Error: {e}")
+
 
 
 
